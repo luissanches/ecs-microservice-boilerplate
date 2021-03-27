@@ -1,0 +1,26 @@
+{
+  "name": "@1edge-backend/common-lib",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "amqplib": "^0.7.1",
+    "aws-sdk": "^2.873.0",
+    "bcryptjs": "^2.4.3",
+    "currency-formatter": "^1.5.7",
+    "dotenv": "^8.2.0",
+    "js-base64": "^3.6.0",
+    "jsonwebtoken": "^8.5.1",
+    "lodash": "^4.17.21",
+    "log4js": "^6.3.0",
+    "moment-timezone": "^0.5.33",
+    "mongodb": "^3.6.5",
+    "randomstring": "^1.1.5",
+    "uuid": "^8.3.2"
+  }
+}

@@ -1,0 +1,9 @@
+Infrastructure/backend/.terraform
+
+shared_data
+tests
+SourceCode/backend/common/src/.env
+SourceCode/backend/common/node_modules
+
+SourceCode/backend/microservices/auth/node_modules
+SourceCode/backend/microservices/auth/shared_data

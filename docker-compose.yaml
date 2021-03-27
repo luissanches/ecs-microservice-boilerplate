@@ -1,0 +1,42 @@
+version: '3.7'
+
+services:
+  1edge-mongodb:
+    image: mongo
+    restart: always
+    container_name: 1edge-mongodb
+    ports:
+     - "27019:27017"
+    volumes:
+      - ./shared_data/mongodb:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: OneEdgeDBUser
+      MONGO_INITDB_ROOT_PASSWORD: OneEdgeDBPWS
+    networks: 
+      database:
+
+  1edge-auth:
+    image: "node:15.3"
+    container_name: 1edge-auth
+    working_dir: /home/node/app/1edge/backend/ms/auth
+    volumes:
+      - ./shared_data:/home/node/1edge/ms/auth/shared_data/logs
+      - ./SourceCode/backend/common:/home/node/app/1edge/backend/common
+      - ./SourceCode/backend/microservices/auth:/home/node/app/1edge/backend/ms/auth
+    environment:
+      - NODE_ENV=$NODE_ENV
+    ports:
+      - "3001:3001" 
+    depends_on:
+      - 1edge-mongodb
+    command:
+      - /bin/bash
+      - -c
+      - npm start
+    networks:
+      backend:
+
+
+networks:
+  database:
+  backend:

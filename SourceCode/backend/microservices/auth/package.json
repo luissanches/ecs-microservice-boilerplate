@@ -1,0 +1,21 @@
+{
+  "name": "auth",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/server.js",
+    "start-debug": "node --trace-warnings --inspect-brk=0.0.0.0 app/server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@1edge-backend/common-lib": "file:../../common",
+    "dns-prefetch-control": "^0.3.0",
+    "fastify": "^3.14.1",
+    "fastify-cors": "^5.2.0",
+    "fastify-helmet": "^5.3.1",
+    "ws": "^7.4.4"
+  }
+}

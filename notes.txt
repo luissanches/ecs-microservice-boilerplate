@@ -1,0 +1,7 @@
+docker run -d --name 1edge-mongodb -e MONGO_INITDB_ROOT_USERNAME=1edgeUser -e MONGO_INITDB_ROOT_PASSWORD=1edgePWS -p 27019:27017 -d mongo
+
+cd /Users/lpereir2/projects/tests/ecs-microservice-boilerplate/SourceCode/backend
+docker build -t one-edge-backend-auth -f microservices/auth/Dockerfile .
+
+
+docker exec -it one-edge-backend-auth /bin/bash
