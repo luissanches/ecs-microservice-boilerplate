@@ -4,4 +4,9 @@ cd /Users/lpereir2/projects/tests/ecs-microservice-boilerplate/SourceCode/backen
 docker build -t one-edge-backend-auth -f microservices/auth/Dockerfile .
 
 
+
+docker run --name one-edge-backend-auth -p 3001:3001 one-edge-backend-auth 
 docker exec -it one-edge-backend-auth /bin/bash
+
+
+docker rm -f one-edge-backend-auth

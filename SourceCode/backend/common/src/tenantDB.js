@@ -26,7 +26,7 @@ async function checkConnection() {
 async function startMongoDB(tenantDatabaseName, tenantDatabaseUser, tenantDatabasePWS, retries = 0) {
   try {
     console.log(`mongodb - retries :>> `, retries);
-    if (retries > 15) {
+    if (retries > process.env.MONGO_DB_CONNECTION_RETRIES) {
       console.log(`mongodb - max retries reached... exit now`);
       process.exit(1);
     }
@@ -34,7 +34,7 @@ async function startMongoDB(tenantDatabaseName, tenantDatabaseUser, tenantDataba
     database.mongoDBClient = await MongoClient.connect(mongodbconnection, { useNewUrlParser: true });
   } catch (err) {
     logger.error(err.message);
-    await helper.sleep(10000);
+    await helper.sleep(process.env.MONGO_DB_SLEEP_CONNECTION_RETRY);
     retries = retries + 1;
     await startMongoDB(tenantDatabaseName, tenantDatabaseUser, tenantDatabasePWS, retries);
   }

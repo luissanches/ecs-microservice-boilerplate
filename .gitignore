@@ -7,3 +7,6 @@ SourceCode/backend/common/node_modules
 
 SourceCode/backend/microservices/auth/node_modules
 SourceCode/backend/microservices/auth/shared_data
+
+SourceCode/backend/microservices/tenants/node_modules
+SourceCode/backend/microservices/tenants/shared_data
