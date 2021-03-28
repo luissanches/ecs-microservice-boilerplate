@@ -1,14 +1,34 @@
-FROM node:15.3
+FROM mhart/alpine-node:15
+#FROM node:15
+
 ENV NODE_ENV=production
+ENV AUTH_PORT=3001
+ENV AUTH_ENABLED=true
+ENV JWT_SECRET=AIzaSyDSkaABqe-regnetgQ9HK8KlIdEqFnIbkk 
+ENV JWT_EXPIRES=15000d
+ENV MONGO_DB_ADDRESS=192.168.0.15
+ENV MONGO_DB_PORT=27019
+ENV MONGO_DB_AUTHMECHANISM=SCRAM-SHA-1
+ENV MONGO_DB_AUTHSOURCE=admin
+ENV MONGO_DB_CONNECTTIMEOUTMS=500000
+ENV MONGO_DB_MAXPOOLSIZE=5
+ENV MONGO_DB_USER=OneEdgeDBUser
+ENV MONGO_DB_PWS=OneEdgeDBPWS
+ENV MONGO_DB_NAME=OneEdge_Core
+ENV CRYPT_SALT=7
+ENV LOCALE=pt-BR
+ENV TIME_ZONE=America/Sao_Paulo
+ENV LOGGER_PATH=shared_data/logs/application.log
 
-WORKDIR /app/
+EXPOSE 3001
 
-COPY ./common/ ./common/
+WORKDIR /app/microservices/auth/
 
-COPY ./microservices/auth/ ./microservices/auth/
+COPY "microservices/auth" .
+COPY "common/" "/app/common/"
 
 RUN npm install --production
 
-COPY . .
+RUN rm -rf Dockerfile
 
-CMD [ "node", "src/test.js" ]
+CMD [ "node", "src/server.js" ]

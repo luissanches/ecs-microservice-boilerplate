@@ -7,7 +7,7 @@ fastify.get('/', async (request, reply) => {
 
 const start = async () => {
   try {
-    await fastify.listen(3001)
+    await fastify.listen(3001, '0.0.0.0')
     console.log('listening....');
   } catch (err) {
     console.log(`err ${err.message}`);
