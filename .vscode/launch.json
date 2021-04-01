@@ -13,6 +13,18 @@
     {
       "type": "node",
       "request": "launch",
+      "name": "Tenants-ms",
+      "program": "${workspaceFolder}/SourceCode/backend/microservices/tenants/src/server.js"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Billing-ms",
+      "program": "${workspaceFolder}/SourceCode/backend/microservices/billing/src/server.js"
+    },
+    {
+      "type": "node",
+      "request": "launch",
       "name": "test2",
       "program": "${workspaceFolder}/SourceCode/backend/microservices/auth/src/test.js"
     },

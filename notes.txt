@@ -1,12 +1,40 @@
-docker run -d --name 1edge-mongodb -e MONGO_INITDB_ROOT_USERNAME=1edgeUser -e MONGO_INITDB_ROOT_PASSWORD=1edgePWS -p 27019:27017 -d mongo
+docker run -d --name 1edge-mongodb --restart=always -e MONGO_INITDB_ROOT_USERNAME=OneEdgeDBUser -e MONGO_INITDB_ROOT_PASSWORD=OneEdgeDBPWS -p 27017:27017 -d mongo
 
 cd /Users/lpereir2/projects/tests/ecs-microservice-boilerplate/SourceCode/backend
 docker build -t one-edge-backend-auth -f microservices/auth/Dockerfile .
 
-
-
-docker run --name one-edge-backend-auth -p 3001:3001 one-edge-backend-auth 
+docker run --name one-edge-backend-auth -p 3003:3001 one-edge-backend-auth 
 docker exec -it one-edge-backend-auth /bin/bash
-
-
 docker rm -f one-edge-backend-auth
+
+docker run --name one-edge-backend-tenants -p 3002:3001 one-edge-backend-tenants 
+docker exec -it one-edge-backend-tenants /bin/bash
+docker rm -f one-edge-backend-tenants
+
+
+docker rm -f 1edge-mongodb
+docker exec -it 1edge-mongodb /bin/bash
+mongo admin -u OneEdgeDBUser -p OneEdgeDBPWS
+show dbs
+use mydatabase
+show collections
+db.your_collection_name.find()
+db.your_collection_name.save({"name":"Sony AK"})
+db.version()
+
+volumes:
+      - ./data/mongo/001_users.js:/docker-entrypoint-initdb.d/001_users.js:ro
+
+data/mongo/001_users.js:data/mongo/001_users.js:
+db.createUser(
+    {
+        user: "admin",
+        pwd: "password",
+        roles:[
+            {
+                role: "readWrite",
+                db:   "mydatabase"
+            }
+        ]
+    }
+);

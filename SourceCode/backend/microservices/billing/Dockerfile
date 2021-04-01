@@ -25,7 +25,7 @@ EXPOSE ${PORT}
 
 WORKDIR /app/microservices/service/
 
-COPY "microservices/tenants" .
+COPY "microservices/billing" .
 COPY "common/" "/app/common/"
 
 RUN npm install --production

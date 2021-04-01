@@ -10,3 +10,6 @@ SourceCode/backend/microservices/auth/shared_data
 
 SourceCode/backend/microservices/tenants/node_modules
 SourceCode/backend/microservices/tenants/shared_data
+
+SourceCode/backend/microservices/billing/node_modules
+SourceCode/backend/microservices/billing/shared_data

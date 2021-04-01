@@ -76,6 +76,15 @@ resource "aws_ecr_repository" "one-edge-backend-tenants" {
   }
 }
 
+resource "aws_ecr_repository" "one-edge-backend-billing" {
+  name                 = "one-edge-backend-billing"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+
 # resource "aws_ecr_repository" "one-edge-backend-fw-security" {
 #   name                 = "one-edge-backend-fw-security"
 #   image_tag_mutability = "MUTABLE"
@@ -84,16 +93,6 @@ resource "aws_ecr_repository" "one-edge-backend-tenants" {
 #     scan_on_push = true
 #   }
 # }
-
-# resource "aws_ecr_repository" "one-edge-backend-billing" {
-#   name                 = "one-edge-backend-billing"
-#   image_tag_mutability = "MUTABLE"
-
-#   image_scanning_configuration {
-#     scan_on_push = true
-#   }
-# }
-
 
 ####### AMAZON DOCUMENT DB #######
 
@@ -126,3 +125,156 @@ resource "aws_ecr_repository" "one-edge-backend-tenants" {
 #   engine_version     = "4.0.0"
 # }
 
+
+####### ELB - ELASTIC LOAD BALANCE #######
+resource "aws_security_group" "one-edge-ecs-elb-sg" {
+  name        = "one-edge-ecs-elb-sg"
+  description = "Allow http inbound traffic"
+  vpc_id      = aws_vpc.oneedge-vpc.id
+
+  ingress {
+    description      = "Http from VPC"
+    from_port        = 80
+    to_port          = 80
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "one-edge-ecs-elb-sg"
+  }
+}
+
+resource "aws_lb" "one-edge-ecs-elb" {
+  name               = "one-edge-ecs-elb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.one-edge-ecs-elb-sg.id]
+  subnets            = [aws_subnet.oneedge-subnet-01.id, aws_subnet.oneedge-subnet-02.id]
+
+  enable_deletion_protection = false
+  tags = {
+    Environment = "one-edge-ecs-elb"
+  }
+}
+
+
+####### ECS CLUSTER #######
+# resource "aws_security_group" "one-edge-ecs-cluster-sg" {
+#   name        = "one-edge-ecs-cluster-sg"
+#   description = "Allow ssh inbound traffic"
+#   vpc_id      = aws_vpc.oneedge-vpc.id
+
+#   ingress {
+#     description      = "Ssh from VPC"
+#     from_port        = 22
+#     to_port          = 22
+#     protocol         = "tcp"
+#     cidr_blocks      = ["0.0.0.0/0"]
+#     ipv6_cidr_blocks = ["::/0"]
+#   }
+
+#   egress {
+#     from_port   = 0
+#     to_port     = 0
+#     protocol    = "-1"
+#     cidr_blocks = ["0.0.0.0/0"]
+#   }
+
+#   tags = {
+#     Name = "one-edge-ecs-cluster-sg"
+#   }
+# }
+
+# data "aws_iam_instance_profile" "iam_instance_profile_tester" {
+#   name = "tester"
+# }
+
+# resource "aws_launch_configuration" "one-edge-stage-mongodb" {
+#   name                        = "one-edge-stage-mongodb"
+#   image_id                    = data.aws_ami.amazon_linux_2.id
+#   instance_type               = "t2.micro"
+#   key_name                    = "test-ec2"
+#   associate_public_ip_address = "true"
+#   security_groups             = [aws_security_group.one-edge-ec2-mongodb-sg.id]
+#   user_data                   = "#!/bin/bash\necho ECS_CLUSTER=${aws_ecs_cluster.default.name} > /etc/ecs/ecs.config"
+# }
+
+# resource "aws_ecs_cluster" "one-edge-ecs-cluster" {
+#     name = "one-edge-ecs-cluster"
+#     tags = {
+#     Name = "one-edge-ecs-cluster"
+#   }
+# }
+
+
+####### EC2 MongoDB #######
+
+
+# resource "aws_security_group" "one-edge-ec2-mongodb-stage-sg" {
+#   name        = "one-edge-ec2-mongodb-stage-sg"
+#   description = "Allow ssh inbound traffic"
+#   vpc_id      = aws_vpc.oneedge-vpc.id
+
+#   ingress {
+#     description      = "Ssh from VPC"
+#     from_port        = 22
+#     to_port          = 22
+#     protocol         = "tcp"
+#     cidr_blocks      = ["0.0.0.0/0"]
+#     ipv6_cidr_blocks = ["::/0"]
+#   }
+
+#   ingress {
+#     description      = "Ssh from VPC"
+#     from_port        = 27017
+#     to_port          = 27017
+#     protocol         = "tcp"
+#     cidr_blocks      = ["0.0.0.0/0"]
+#     ipv6_cidr_blocks = ["::/0"]
+#   }
+
+#   egress {
+#     from_port   = 0
+#     to_port     = 0
+#     protocol    = "-1"
+#     cidr_blocks = ["0.0.0.0/0"]
+#   }
+
+#   tags = {
+#     Name = "one-edge-ec2-mongodb-stage-sg"
+#   }
+# }
+
+# data "aws_ami" "amazon_linux_2" {
+#   most_recent = true
+#   owners      = ["amazon"]
+
+#   filter {
+#     name   = "name"
+#     values = ["amzn2-ami-hvm-*-x86_64-ebs"]
+#   }
+# }
+
+# resource "aws_instance" "one-edge-stage-mongodb" {
+#   ami                         = data.aws_ami.amazon_linux_2.id
+#   instance_type               = "t2.micro"
+#   key_name                    = "test-ec2"
+#   associate_public_ip_address = "true"
+#   security_groups             = [aws_security_group.one-edge-ec2-mongodb-stage-sg.id]
+#   subnet_id                   = aws_subnet.oneedge-subnet-01.id
+#   user_data                   = "#!/bin/bash\nsudo yum update -y && sudo amazon-linux-extras install docker && sudo yum install docker && sudo service docker start && sudo usermod -a -G docker ec2-user && docker run -d --name 1edge-mongodb --restart=always -e MONGO_INITDB_ROOT_USERNAME=OneEdgeDBUser -e MONGO_INITDB_ROOT_PASSWORD=OneEdgeDBPWS -p 27017:27017 -d mongo"
+  
+  
+#   tags = {
+#     Name = "one-edge-stage-mongodb"
+#   }
+# }

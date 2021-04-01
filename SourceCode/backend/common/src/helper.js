@@ -26,6 +26,15 @@ exports.makeDefaulErrortResponse = (msg) => {
   let defaultMessage = { status: 'error', msg };
   return defaultMessage;
 };
+exports.baseRequestHandler = async (req, res, service) => {
+  try {
+    if (!service) throw Error('No service to handling');
+    let response = await service(req);
+    res.send(this.makeDefaultResponse(response));
+  } catch (err) {
+    res.send(this.makeDefaulErrortResponse(err.message));
+  }
+}
 
 exports.generateRandomString = (size = 5, prefix = null, charset = null) => {
   let options = { length: size };
