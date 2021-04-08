@@ -3,7 +3,7 @@ const serviceRoutes = require('./service.routes');
 const package = require('../package.json');
 let router = require('express').Router();
 
-let OPENED_ROUTES = [`/v1/${package.name}/isalive`, `/v1/${package.name}/ping`];
+let OPENED_ROUTES = ['/', `/v1/${package.name}/isalive`, `/v1/${package.name}/ping`];
 
 exports.configureRoutes = app => {
   router.get(`/v1/${package.name}/isalive`, async (req, res) => {

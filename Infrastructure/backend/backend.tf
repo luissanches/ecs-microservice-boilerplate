@@ -126,7 +126,7 @@ resource "aws_ecr_repository" "one-edge-backend-billing" {
 # }
 
 
-####### ELB - ELASTIC LOAD BALANCE #######
+# # ####### ELB - ELASTIC LOAD BALANCE #######
 resource "aws_security_group" "one-edge-ecs-elb-sg" {
   name        = "one-edge-ecs-elb-sg"
   description = "Allow http inbound traffic"
@@ -162,61 +162,223 @@ resource "aws_lb" "one-edge-ecs-elb" {
 
   enable_deletion_protection = false
   tags = {
-    Environment = "one-edge-ecs-elb"
+    Name = "one-edge-ecs-elb"
+  }
+}
+
+## ELB Target Group and ELB Listener, both of them will be by ECS Service
+resource "aws_lb_target_group" "one-edge-ecs-elb-target-group-auth" {
+  name     = "one-edge-ecs-elb-target-group-auth"
+  port     = "80"
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.oneedge-vpc.id
+
+  health_check {
+    healthy_threshold   = "5"
+    unhealthy_threshold = "2"
+    interval            = "30"
+    matcher             = "200"
+    path                = "/v1/auth/ping"
+    port                = "traffic-port"
+    protocol            = "HTTP"
+    timeout             = "5"
+  }
+
+}
+
+resource "aws_lb_listener" "one-edge-ecs-elb-listener-auth" {
+  load_balancer_arn = aws_lb.one-edge-ecs-elb.arn
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    target_group_arn = aws_lb_target_group.one-edge-ecs-elb-target-group-auth.arn
+    type             = "forward"
   }
 }
 
 
-####### ECS CLUSTER #######
-# resource "aws_security_group" "one-edge-ecs-cluster-sg" {
-#   name        = "one-edge-ecs-cluster-sg"
-#   description = "Allow ssh inbound traffic"
-#   vpc_id      = aws_vpc.oneedge-vpc.id
+###### ECS CLUSTER #######
+resource "aws_security_group" "one-edge-ecs-cluster-sg" {
+  name        = "one-edge-ecs-cluster-sg"
+  description = "Allow ssh inbound traffic"
+  vpc_id      = aws_vpc.oneedge-vpc.id
 
-#   ingress {
-#     description      = "Ssh from VPC"
-#     from_port        = 22
-#     to_port          = 22
-#     protocol         = "tcp"
-#     cidr_blocks      = ["0.0.0.0/0"]
-#     ipv6_cidr_blocks = ["::/0"]
-#   }
+  ingress {
+    description      = "Ssh from VPC"
+    from_port        = 22
+    to_port          = 22
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
 
-#   egress {
-#     from_port   = 0
-#     to_port     = 0
-#     protocol    = "-1"
-#     cidr_blocks = ["0.0.0.0/0"]
-#   }
+  ingress {
+    description      = "for testing"
+    from_port        = 3000
+    to_port          = 65535
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
 
-#   tags = {
-#     Name = "one-edge-ecs-cluster-sg"
-#   }
-# }
+  ingress {
+    description     = "Http from ELB"
+    from_port       = 3000
+    to_port         = 65535
+    protocol        = "tcp"
+    security_groups = [aws_security_group.one-edge-ecs-elb-sg.id]
+  }
 
-# data "aws_iam_instance_profile" "iam_instance_profile_tester" {
-#   name = "tester"
-# }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-# resource "aws_launch_configuration" "one-edge-stage-mongodb" {
-#   name                        = "one-edge-stage-mongodb"
-#   image_id                    = data.aws_ami.amazon_linux_2.id
-#   instance_type               = "t2.micro"
-#   key_name                    = "test-ec2"
-#   associate_public_ip_address = "true"
-#   security_groups             = [aws_security_group.one-edge-ec2-mongodb-sg.id]
-#   user_data                   = "#!/bin/bash\necho ECS_CLUSTER=${aws_ecs_cluster.default.name} > /etc/ecs/ecs.config"
-# }
+  tags = {
+    Name = "one-edge-ecs-cluster-sg"
+  }
+}
 
-# resource "aws_ecs_cluster" "one-edge-ecs-cluster" {
-#     name = "one-edge-ecs-cluster"
-#     tags = {
-#     Name = "one-edge-ecs-cluster"
-#   }
-# }
+data "aws_ami" "amazon_linux_2" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-ebs"]
+  }
+}
+
+resource "aws_iam_instance_profile" "one-edge-ecs-role-instance-profile" {
+  name = "one-edge-ecs-role-instance-profile"
+  role = aws_iam_role.one-edge-ecs-role.name
+}
+
+resource "aws_iam_role" "one-edge-ecs-role" {
+  name = "one-edge-ecs-role"
+  path = "/"
+
+  assume_role_policy = jsonencode(
+    {
+      Version : "2012-10-17",
+      Statement : [
+        {
+          Action : "sts:AssumeRole",
+          Principal : {
+            Service : "ec2.amazonaws.com"
+          },
+          Effect : "Allow",
+          Sid : ""
+        }
+      ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "one-edge-ecs-role-policy-attachment" {
+  role       = aws_iam_role.one-edge-ecs-role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+}
+
+resource "aws_launch_configuration" "one-edge-ecs-cluster-launch-config" {
+  name                        = "one-edge-ecs-cluster-launch-config"
+  image_id                    = "ami-005425225a11a4777"
+  instance_type               = "t2.micro"
+  key_name                    = "test-ec2"
+  iam_instance_profile        = aws_iam_instance_profile.one-edge-ecs-role-instance-profile.arn
+  associate_public_ip_address = "true"
+  security_groups             = [aws_security_group.one-edge-ecs-cluster-sg.id]
+  user_data                   = "#!/bin/bash\necho ECS_CLUSTER=${aws_ecs_cluster.one-edge-ecs-cluster.name} >> /etc/ecs/ecs.config;echo ECS_BACKEND_HOST= >> /etc/ecs/ecs.config;"
+  root_block_device {
+    volume_type           = "gp2"
+    volume_size           = 30
+    delete_on_termination = true
+  }
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_autoscaling_group" "one-edge-ecs-autoscaling-group" {
+  name                      = "ecs-autoscaling-group"
+  max_size                  = 1
+  min_size                  = 0
+  desired_capacity          = 1
+  vpc_zone_identifier       = [aws_subnet.oneedge-subnet-01.id, aws_subnet.oneedge-subnet-02.id]
+  launch_configuration      = aws_launch_configuration.one-edge-ecs-cluster-launch-config.name
+  health_check_grace_period = 300
+  health_check_type         = "EC2"
+  tags = [{
+    key                 = "Name"
+    value               = "one-edge-ecs-cluster-launch-config"
+    propagate_at_launch = true
+  }]
+}
+
+resource "aws_ecs_cluster" "one-edge-ecs-cluster" {
+  name = "one-edge-ecs-cluster"
+  tags = {
+    Name = "one-edge-ecs-cluster"
+  }
+}
 
 
-####### EC2 MongoDB #######
+resource "aws_ecs_task_definition" "one-edge-ecs-backend-auth" {
+  family = "one-edge-ecs-backend-auth"
+  container_definitions = jsonencode([
+    {
+      name : "one-edge-ecs-backend-auth-container",
+      image : "105019345634.dkr.ecr.us-east-1.amazonaws.com/one-edge-backend-auth:latest",
+      cpu : 256,
+      memory : 256,
+      essential : true,
+      portMappings : [
+        {
+          containerPort : 3001,
+          hostPort : 0
+        }
+      ],
+      environment : [
+        {
+          name : "NODE_ENV",
+          value : "development"
+        }
+      ],
+    }
+  ])
+}
+
+resource "aws_ecs_service" "one-edge-ecs-backend-auth-service" {
+  name = "one-edge-ecs-backend-auth-service"
+  iam_role        = "tester"
+  cluster         = aws_ecs_cluster.one-edge-ecs-cluster.id
+  task_definition = aws_ecs_task_definition.one-edge-ecs-backend-auth.arn
+  desired_count   = 2
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.one-edge-ecs-elb-target-group-auth.arn
+    container_port   = 3001
+    container_name   = "one-edge-ecs-backend-auth-container"
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+####### Stage / Test Environment #######
+
+
+
+####### EC2 MongoDB for Stage or Test #######
 
 
 # resource "aws_security_group" "one-edge-ec2-mongodb-stage-sg" {
@@ -272,9 +434,21 @@ resource "aws_lb" "one-edge-ecs-elb" {
 #   security_groups             = [aws_security_group.one-edge-ec2-mongodb-stage-sg.id]
 #   subnet_id                   = aws_subnet.oneedge-subnet-01.id
 #   user_data                   = "#!/bin/bash\nsudo yum update -y && sudo amazon-linux-extras install docker && sudo yum install docker && sudo service docker start && sudo usermod -a -G docker ec2-user && docker run -d --name 1edge-mongodb --restart=always -e MONGO_INITDB_ROOT_USERNAME=OneEdgeDBUser -e MONGO_INITDB_ROOT_PASSWORD=OneEdgeDBPWS -p 27017:27017 -d mongo"
-  
-  
+
+
 #   tags = {
 #     Name = "one-edge-stage-mongodb"
 #   }
 # }
+
+
+
+
+
+output "amazon_linux_2_id" {
+  value = data.aws_ami.amazon_linux_2.id
+}
+
+output "loadbalance_url" {
+  value = aws_lb.one-edge-ecs-elb.dns_name
+}

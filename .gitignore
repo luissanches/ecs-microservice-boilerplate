@@ -1,4 +1,5 @@
 Infrastructure/backend/.terraform
+Infrastructure/backend/terraform.tfstate.backup
 
 shared_data
 tests
