@@ -126,6 +126,7 @@ resource "aws_ecr_repository" "one-edge-backend-billing" {
 # }
 
 
+
 # # ####### ELB - ELASTIC LOAD BALANCE #######
 resource "aws_security_group" "one-edge-ecs-elb-sg" {
   name        = "one-edge-ecs-elb-sg"
@@ -167,8 +168,8 @@ resource "aws_lb" "one-edge-ecs-elb" {
 }
 
 ## ELB Target Group and ELB Listener, both of them will be by ECS Service
-resource "aws_lb_target_group" "one-edge-ecs-elb-target-group-auth" {
-  name     = "one-edge-ecs-elb-target-group-auth"
+resource "aws_lb_target_group" "one-edge-ecs-elb-tg-auth" {
+  name     = "one-edge-ecs-elb-tg-auth"
   port     = "80"
   protocol = "HTTP"
   vpc_id   = aws_vpc.oneedge-vpc.id
@@ -186,14 +187,104 @@ resource "aws_lb_target_group" "one-edge-ecs-elb-target-group-auth" {
 
 }
 
-resource "aws_lb_listener" "one-edge-ecs-elb-listener-auth" {
+resource "aws_lb_target_group" "one-edge-ecs-elb-tg-billing" {
+  name     = "one-edge-ecs-elb-tg-billing"
+  port     = "80"
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.oneedge-vpc.id
+
+  health_check {
+    healthy_threshold   = "5"
+    unhealthy_threshold = "2"
+    interval            = "30"
+    matcher             = "200"
+    path                = "/v1/billing/ping"
+    port                = "traffic-port"
+    protocol            = "HTTP"
+    timeout             = "5"
+  }
+
+}
+
+resource "aws_lb_target_group" "one-edge-ecs-elb-tg-tenants" {
+  name     = "one-edge-ecs-elb-tg-tenants"
+  port     = "80"
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.oneedge-vpc.id
+
+  health_check {
+    healthy_threshold   = "5"
+    unhealthy_threshold = "2"
+    interval            = "30"
+    matcher             = "200"
+    path                = "/v1/tenants/ping"
+    port                = "traffic-port"
+    protocol            = "HTTP"
+    timeout             = "5"
+  }
+
+}
+
+resource "aws_lb_listener" "one-edge-ecs-elb-listener" {
   load_balancer_arn = aws_lb.one-edge-ecs-elb.arn
   port              = "80"
   protocol          = "HTTP"
 
+  # default_action {
+  #   target_group_arn = aws_lb_target_group.one-edge-ecs-elb-tg-auth.arn
+  #   type             = "forward"
+  # }
   default_action {
-    target_group_arn = aws_lb_target_group.one-edge-ecs-elb-target-group-auth.arn
+    type = "fixed-response"
+
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "ELB default response action"
+      status_code  = "200"
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "oe-ecs-elb-lr-auth" {
+  listener_arn = aws_lb_listener.one-edge-ecs-elb-listener.arn
+  action {
     type             = "forward"
+    target_group_arn = aws_lb_target_group.one-edge-ecs-elb-tg-auth.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/v1/auth/*"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "oe-ecs-elb-lr-billing" {
+  listener_arn = aws_lb_listener.one-edge-ecs-elb-listener.arn
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.one-edge-ecs-elb-tg-billing.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/v1/billing/*"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "oe-ecs-elb-lr-tenants" {
+  listener_arn = aws_lb_listener.one-edge-ecs-elb-listener.arn
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.one-edge-ecs-elb-tg-tenants.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/v1/tenants/*"]
+    }
   }
 }
 
@@ -303,7 +394,7 @@ resource "aws_launch_configuration" "one-edge-ecs-cluster-launch-config" {
 
 resource "aws_autoscaling_group" "one-edge-ecs-autoscaling-group" {
   name                      = "ecs-autoscaling-group"
-  max_size                  = 1
+  max_size                  = 2
   min_size                  = 0
   desired_capacity          = 1
   vpc_zone_identifier       = [aws_subnet.oneedge-subnet-01.id, aws_subnet.oneedge-subnet-02.id]
@@ -324,15 +415,65 @@ resource "aws_ecs_cluster" "one-edge-ecs-cluster" {
   }
 }
 
-
+### ECS TASKS AND SERVICES ###
 resource "aws_ecs_task_definition" "one-edge-ecs-backend-auth" {
   family = "one-edge-ecs-backend-auth"
   container_definitions = jsonencode([
     {
       name : "one-edge-ecs-backend-auth-container",
       image : "105019345634.dkr.ecr.us-east-1.amazonaws.com/one-edge-backend-auth:latest",
-      cpu : 256,
-      memory : 256,
+      cpu : 128,
+      memory : 128,
+      essential : true,
+      portMappings : [
+        {
+          containerPort : 3001,
+          hostPort : 0
+        }
+      ],
+      environment : [
+        {
+          name : "NODE_ENV",
+          value : "development"
+        }
+      ],
+    }
+  ])
+}
+
+resource "aws_ecs_task_definition" "one-edge-ecs-backend-billing" {
+  family = "one-edge-ecs-backend-billing"
+  container_definitions = jsonencode([
+    {
+      name : "one-edge-ecs-backend-billing-container",
+      image : "105019345634.dkr.ecr.us-east-1.amazonaws.com/one-edge-backend-billing:latest",
+      cpu : 128,
+      memory : 128,
+      essential : true,
+      portMappings : [
+        {
+          containerPort : 3001,
+          hostPort : 0
+        }
+      ],
+      environment : [
+        {
+          name : "NODE_ENV",
+          value : "development"
+        }
+      ],
+    }
+  ])
+}
+
+resource "aws_ecs_task_definition" "one-edge-ecs-backend-tenants" {
+  family = "one-edge-ecs-backend-tenants"
+  container_definitions = jsonencode([
+    {
+      name : "one-edge-ecs-backend-tenants-container",
+      image : "105019345634.dkr.ecr.us-east-1.amazonaws.com/one-edge-backend-tenants:latest",
+      cpu : 128,
+      memory : 128,
       essential : true,
       portMappings : [
         {
@@ -352,15 +493,49 @@ resource "aws_ecs_task_definition" "one-edge-ecs-backend-auth" {
 
 resource "aws_ecs_service" "one-edge-ecs-backend-auth-service" {
   name = "one-edge-ecs-backend-auth-service"
-  iam_role        = "tester"
+  ### iam_role        = "tester"
+  launch_type     = "EC2"
   cluster         = aws_ecs_cluster.one-edge-ecs-cluster.id
   task_definition = aws_ecs_task_definition.one-edge-ecs-backend-auth.arn
   desired_count   = 2
 
+
   load_balancer {
-    target_group_arn = aws_lb_target_group.one-edge-ecs-elb-target-group-auth.arn
+    target_group_arn = aws_lb_target_group.one-edge-ecs-elb-tg-auth.arn
     container_port   = 3001
     container_name   = "one-edge-ecs-backend-auth-container"
+  }
+}
+
+resource "aws_ecs_service" "one-edge-ecs-backend-billing-service" {
+  name = "one-edge-ecs-backend-billing-service"
+  ### iam_role        = "tester"
+  launch_type     = "EC2"
+  cluster         = aws_ecs_cluster.one-edge-ecs-cluster.id
+  task_definition = aws_ecs_task_definition.one-edge-ecs-backend-billing.arn
+  desired_count   = 2
+
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.one-edge-ecs-elb-tg-billing.arn
+    container_port   = 3001
+    container_name   = "one-edge-ecs-backend-billing-container"
+  }
+}
+
+resource "aws_ecs_service" "one-edge-ecs-backend-tenants-service" {
+  name = "one-edge-ecs-backend-tenants-service"
+  ### iam_role        = "tester"
+  launch_type     = "EC2"
+  cluster         = aws_ecs_cluster.one-edge-ecs-cluster.id
+  task_definition = aws_ecs_task_definition.one-edge-ecs-backend-tenants.arn
+  desired_count   = 2
+
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.one-edge-ecs-elb-tg-tenants.arn
+    container_port   = 3001
+    container_name   = "one-edge-ecs-backend-tenants-container"
   }
 }
 
@@ -373,13 +548,8 @@ resource "aws_ecs_service" "one-edge-ecs-backend-auth-service" {
 
 
 
-
 ####### Stage / Test Environment #######
-
-
-
 ####### EC2 MongoDB for Stage or Test #######
-
 
 # resource "aws_security_group" "one-edge-ec2-mongodb-stage-sg" {
 #   name        = "one-edge-ec2-mongodb-stage-sg"

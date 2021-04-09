@@ -38,3 +38,5 @@ db.createUser(
         ]
     }
 );
+
+ab -n 100000 -c 80 -s 300 http://one-edge-ecs-elb-312119099.us-east-1.elb.amazonaws.com/v1/auth/ping
