@@ -1,5 +1,6 @@
 Infrastructure/backend/.terraform
 Infrastructure/backend/terraform.tfstate.backup
+Infrastructure/.DS_Store
 
 shared_data
 tests
